@@ -1291,6 +1291,99 @@ def handle_delete_system_pattern_by_id(args: models.DeleteSystemPatternByIdArgs)
         log.exception(f"Unexpected error in delete_system_pattern_by_id for workspace {args.workspace_id}, pattern ID {args.pattern_id}")
         raise ContextPortalError(f"Unexpected error deleting system pattern: {e}")
 
+
+# --- Product Info Handlers ---
+
+def handle_add_product_info(args: models.AddProductInfoArgs) -> Dict[str, Any]:
+    """Handles the 'add_product_info' MCP tool."""
+    try:
+        product_info = models.ProductInfo(
+            category=args.category,
+            summary=args.summary,
+            content=args.content,
+            additionalFields=args.additionalFields,
+            tags=args.tags
+        )
+        result = db.add_product_info(args.workspace_id, product_info)
+        return {
+            "status": "success",
+            "id": result.id,
+            "message": f"Product info created with ID {result.id}"
+        }
+    except Exception as e:
+        raise ContextPortalError(f"Failed to add product_info: {str(e)}")
+
+def handle_get_product_info(args: models.GetProductInfoArgs) -> List[Dict[str, Any]]:
+    """Handles the 'get_product_info' MCP tool."""
+    try:
+        product_info_list = db.get_product_info(
+            workspace_id=args.workspace_id,
+            product_id=args.id,
+            category=args.category,
+            tags_filter_include_all=args.tags_filter_include_all,
+            tags_filter_include_any=args.tags_filter_include_any,
+            limit=args.limit
+        )
+        return [p.model_dump(mode='json') for p in product_info_list]
+    except Exception as e:
+        raise ContextPortalError(f"Failed to retrieve product_info: {str(e)}")
+
+def handle_update_product_info(args: models.UpdateProductInfoArgs) -> Dict[str, Any]:
+    """Handles the 'update_product_info' MCP tool."""
+    try:
+        # Build a dictionary of only provided fields
+        updates = {}
+        if args.category is not None:
+            updates['category'] = args.category
+        if args.summary is not None:
+            updates['summary'] = args.summary
+        if args.content is not None:
+            updates['content'] = args.content
+        if args.additionalFields is not None:
+            updates['additionalFields'] = args.additionalFields
+        if args.tags is not None:
+            updates['tags'] = args.tags
+        
+        success = db.update_product_info(
+            workspace_id=args.workspace_id,
+            product_id=args.id,
+            updates=updates
+        )
+        
+        if not success:
+            return {
+                "status": "error",
+                "message": f"Product info with ID {args.id} not found"
+            }
+        
+        return {
+            "status": "success",
+            "id": args.id,
+            "message": f"Product info {args.id} updated successfully"
+        }
+    except Exception as e:
+        raise ContextPortalError(f"Failed to update product_info: {str(e)}")
+
+def handle_delete_product_info(args: models.DeleteProductInfoArgs) -> Dict[str, Any]:
+    """Handles the 'delete_product_info' MCP tool."""
+    try:
+        success = db.delete_product_info(args.workspace_id, args.id)
+        
+        if not success:
+            return {
+                "status": "error",
+                "message": f"Product info with ID {args.id} not found"
+            }
+        
+        return {
+            "status": "success",
+            "id": args.id,
+            "message": f"Product info {args.id} deleted successfully"
+        }
+    except Exception as e:
+        raise ContextPortalError(f"Failed to delete product_info: {str(e)}")
+
+
 # --- Obsolete MCP Dispatcher Logic ---
 # The following (TOOL_DESCRIPTIONS, handle_list_tools, TOOL_HANDLERS, dispatch_tool)
 # are now obsolete as FastMCP handles tool registration, listing, and dispatch.

@@ -326,6 +326,79 @@ class SearchProjectGlossaryArgs(IntCoercionMixin, BaseArgs):
         if self.limit is not None and self.limit < 1:
             raise ValueError("limit must be greater than or equal to 1")
         return self
+# --- Product Info Tools ---
+
+class ProductInfo(BaseModel):
+    """Model for the product_info table."""
+    id: Optional[int] = None
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    category: str
+    summary: str
+    content: str
+    additionalFields: Dict[str, str] = Field(default_factory=dict)
+    tags: Optional[List[str]] = Field(None, description="Optional tags for categorization")
+
+class AddProductInfoArgs(BaseArgs):
+    """Arguments for adding a new product_info item."""
+    category: str = Field(..., min_length=1, description="Category for the product info")
+    summary: str = Field(..., min_length=1, description="Concise summary of the product info")
+    content: str = Field(..., min_length=1, description="Detailed content of the product info")
+    additionalFields: Dict[str, str] = Field(default_factory=dict, description="Additional fields as key-value pairs")
+    tags: Optional[List[str]] = Field(None, description="Optional tags for categorization")
+
+class GetProductInfoArgs(IntCoercionMixin, BaseArgs):
+    """Arguments for retrieving product_info items."""
+    INT_FIELDS: ClassVar[Set[str]] = {"limit"}
+    id: Optional[int] = Field(None, description="Filter by specific product_info ID")
+    category: Optional[str] = Field(None, description="Filter by category")
+    limit: Optional[int] = Field(None, description="Maximum number of results to return (most recent first)")
+    tags_filter_include_all: Optional[List[str]] = Field(None, description="Filter: items must include ALL of these tags.")
+    tags_filter_include_any: Optional[List[str]] = Field(None, description="Filter: items must include AT LEAST ONE of these tags.")
+
+    @model_validator(mode='after')
+    def check_limit(self) -> 'GetProductInfoArgs':
+        if self.limit is not None and self.limit < 1:
+            raise ValueError("limit must be greater than or equal to 1")
+        return self
+
+class UpdateProductInfoArgs(IntCoercionMixin, BaseArgs):
+    """Arguments for updating an existing product_info item."""
+    INT_FIELDS: ClassVar[Set[str]] = {"id"}
+    id: int = Field(..., description="ID of the product_info to update")
+    category: Optional[str] = Field(None, description="New category")
+    summary: Optional[str] = Field(None, min_length=1, description="New summary")
+    content: Optional[str] = Field(None, min_length=1, description="New content")
+    additionalFields: Optional[Dict[str, str]] = Field(None, description="New tags (replaces existing)")
+    tags: Optional[List[str]] = Field(None, description="Optional tags for categorization")
+
+    @model_validator(mode='before')
+    @classmethod
+    def check_at_least_one_field(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+        category, summary, content, additionalFields, tags = (
+            values.get('category'), values.get('summary'), 
+            values.get('content'), values.get('additionalFields'), values.get('tags')
+        )
+        if category is None and summary is None and content is None and additionalFields is None and tags is None:
+            raise ValueError("At least one field ('category', 'summary', 'content', 'additionalFields', or 'tags') must be provided for update.")
+        return values
+
+    @model_validator(mode='after')
+    def check_id(self) -> 'UpdateProductInfoArgs':
+        if self.id < 1:
+            raise ValueError("id must be greater than or equal to 1")
+        return self
+
+class DeleteProductInfoArgs(IntCoercionMixin, BaseArgs):
+    """Arguments for deleting a product_info item."""
+    INT_FIELDS: ClassVar[Set[str]] = {"id"}
+    id: int = Field(..., description="ID of the product_info to delete")
+
+    @model_validator(mode='after')
+    def check_id(self) -> 'DeleteProductInfoArgs':
+        if self.id < 1:
+            raise ValueError("id must be greater than or equal to 1")
+        return self
+
 
 # --- Export Tool ---
 
@@ -488,6 +561,8 @@ TOOL_ARG_MODELS = {
     "delete_decision_by_id": DeleteDecisionByIdArgs,
     "log_progress": LogProgressArgs,
     "get_progress": GetProgressArgs,
+    "update_progress": UpdateProgressArgs,
+    "delete_progress_by_id": DeleteProgressByIdArgs,
     "log_system_pattern": LogSystemPatternArgs,
     "get_system_patterns": GetSystemPatternsArgs,
     "delete_system_pattern_by_id": DeleteSystemPatternByIdArgs,
@@ -496,6 +571,10 @@ TOOL_ARG_MODELS = {
     "delete_custom_data": DeleteCustomDataArgs,
     "search_custom_data_value_fts": SearchCustomDataValueArgs,
     "search_project_glossary_fts": SearchProjectGlossaryArgs,
+    "add_product_info": AddProductInfoArgs,
+    "get_product_info": GetProductInfoArgs,
+    "update_product_info": UpdateProductInfoArgs,
+    "delete_product_info": DeleteProductInfoArgs,
     "export_conport_to_markdown": ExportConportToMarkdownArgs,
     "import_markdown_to_conport": ImportMarkdownToConportArgs,
     "link_conport_items": LinkConportItemsArgs,
@@ -505,6 +584,4 @@ TOOL_ARG_MODELS = {
     "get_conport_schema": GetConportSchemaArgs,
     "get_recent_activity_summary": GetRecentActivitySummaryArgs,
     "semantic_search_conport": SemanticSearchConportArgs,
-    "update_progress": UpdateProgressArgs,
-    "delete_progress_by_id": DeleteProgressByIdArgs,
 }

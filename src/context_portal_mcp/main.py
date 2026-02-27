@@ -998,6 +998,162 @@ async def tool_get_custom_data(
         raise exceptions.ContextPortalError(
             f"Server error processing get_custom_data: {type(e).__name__}"
         )
+    
+@conport_mcp.tool(
+    name="add_product_info",
+    description="Adds a new product_info item.",
+)
+async def tool_add_product_info(
+    workspace_id: Annotated[str, Field(
+        description="Identifier for the workspace (e.g., absolute path)"
+    )],
+    category: Annotated[str, Field(
+        description="Category for the product info"
+    )],
+    summary: Annotated[str, Field(
+        description="Concise summary of the product info"
+    )],
+    content: Annotated[str, Field(
+        description="Detailed content of the product info"
+    )],
+    ctx: Context,
+    additionalFields: Annotated[Optional[Dict[str, str]], Field(
+        description="Tags as key-value pairs"
+    )] = None,
+    tags: Annotated[Optional[List[str]], Field(
+        description="Optional tags for categorization"
+    )] = None
+) -> Dict[str, Any]:
+    """Adds a new product_info item."""
+    try:
+        _ = ctx
+        pydantic_args = models.AddProductInfoArgs(
+            workspace_id=workspace_id,
+            category=category,
+            summary=summary,
+            content=content,
+            additionalFields=additionalFields or {},
+            tags=tags
+        )
+        return mcp_handlers.handle_add_product_info(pydantic_args)
+    except exceptions.ContextPortalError as e:
+        return {"status": "error", "message": str(e)}
+
+@conport_mcp.tool(
+    name="get_product_info",
+    description="Retrieves product_info items with optional filtering.",
+    annotations=ToolAnnotations(
+        title="Get Product Info",
+        readOnlyHint=True,
+    ),
+)
+async def tool_get_product_info(
+    workspace_id: Annotated[str, Field(
+        description="Identifier for the workspace (e.g., absolute path)"
+    )],
+    ctx: Context,
+    id: Annotated[Optional[Union[int, str]], Field(
+        description="Filter by specific product_info ID"
+    )] = None,
+    category: Annotated[Optional[str], Field(
+        description="Filter by category"
+    )] = None,
+    limit: Annotated[Optional[Union[int, str]], Field(
+        description="Maximum number of results to return"
+    )] = None,
+    tags_filter_include_all: Annotated[Optional[List[str]], Field(
+        description="Filter: items must include ALL of these tags."
+    )] = None,
+    tags_filter_include_any: Annotated[Optional[List[str]], Field(
+        description="Filter: items must include AT LEAST ONE of these tags."
+    )] = None
+) -> List[Dict[str, Any]]:
+    """Retrieves product_info items with optional filtering."""
+    try:
+        _ = ctx
+        pydantic_args = models.GetProductInfoArgs(
+            workspace_id=workspace_id,
+            id=int(id) if id is not None else None,
+            category=category,
+            tags_filter_include_all=tags_filter_include_all,
+            tags_filter_include_any=tags_filter_include_any,
+            limit=int(limit) if limit is not None else None
+        )
+        return mcp_handlers.handle_get_product_info(pydantic_args)
+    except exceptions.ContextPortalError as e:
+        return {"status": "error", "message": str(e)}
+
+@conport_mcp.tool(
+    name="update_product_info",
+    description="Updates an existing product_info item.",
+)
+async def tool_update_product_info(
+    ctx: Context,
+    workspace_id: Annotated[str, Field(
+        description="Identifier for the workspace (e.g., absolute path)"
+    )],
+    id: Annotated[Union[int, str], Field(
+        description="ID of the product_info to update"
+    )],
+    category: Annotated[Optional[str], Field(
+        description="New category"
+    )] = None,
+    summary: Annotated[Optional[str], Field(
+        description="New summary"
+    )] = None,
+    content: Annotated[Optional[str], Field(
+        description="New content"
+    )] = None,
+    additionalFields: Annotated[Optional[Dict[str, str]], Field(
+        description="New tags"
+    )] = None,
+    tags: Annotated[Optional[List[str]], Field(
+        description="Optional tags for categorization"
+    )] = None
+) -> Dict[str, Any]:
+    """Updates an existing product_info item."""
+    try:
+        _ = ctx
+        pydantic_args = models.UpdateProductInfoArgs(
+            workspace_id=workspace_id,
+            id=int(id),
+            category=category,
+            summary=summary,
+            content=content,
+            additionalFields=additionalFields,
+            tags=tags
+        )
+        return mcp_handlers.handle_update_product_info(pydantic_args)
+    except exceptions.ContextPortalError as e:
+        return {"status": "error", "message": str(e)}
+
+@conport_mcp.tool(
+    name="delete_product_info",
+    description="Deletes a product_info item by ID.",
+    annotations=ToolAnnotations(
+        title="Delete Product Info",
+        destructiveHint=True,
+    ),
+)
+async def tool_delete_product_info(
+    workspace_id: Annotated[str, Field(
+        description="Identifier for the workspace (e.g., absolute path)"
+    )],
+    id: Annotated[Union[int, str], Field(
+        description="ID of the product_info to delete"
+    )],
+    ctx: Context = None,
+) -> Dict[str, Any]:
+    """Deletes a product_info item by ID."""
+    try:
+        _ = ctx
+        pydantic_args = models.DeleteProductInfoArgs(
+            workspace_id=workspace_id,
+            id=int(id)
+        )
+        return mcp_handlers.handle_delete_product_info(pydantic_args)
+    except exceptions.ContextPortalError as e:
+        return {"status": "error", "message": str(e)}
 
 @conport_mcp.tool(
     name="delete_custom_data",

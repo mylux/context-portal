@@ -229,6 +229,17 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('category', 'key')
     )
+    op.create_table('product_info',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('workspace_id', sa.String(length=512), nullable=False),
+    sa.Column('timestamp', sa.DateTime(), nullable=False),
+    sa.Column('category', sa.String(length=255), nullable=False),
+    sa.Column('summary', sa.Text(), nullable=False),
+    sa.Column('content', sa.Text(), nullable=False),
+    sa.Column('additionalFields', sa.Text(), nullable=False),
+    sa.Column('tags', sa.Text(), nullable=True),
+    sa.PrimaryKeyConstraint('id')
+    )
     op.create_table('decisions',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('timestamp', sa.DateTime(), nullable=False),
@@ -1242,6 +1253,152 @@ def delete_custom_data(workspace_id: str, category: str, key: str) -> bool:
     except sqlite3.Error as e:
         conn.rollback()
         raise DatabaseError(f"Failed to delete custom data for '{category}/{key}': {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
+def add_product_info(workspace_id: str, product_info: models.ProductInfo) -> models.ProductInfo:
+    """Adds a new product_info entry."""
+    conn = get_db_connection(workspace_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        additionalFields_json = json.dumps(product_info.additionalFields) if product_info.additionalFields else "{}"
+        tags_json = json.dumps(product_info.tags) if product_info.tags else None
+        cursor.execute(
+            """INSERT INTO product_info 
+               (workspace_id, timestamp, category, summary, content, additionalFields, tags)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (workspace_id, product_info.timestamp, product_info.category, 
+             product_info.summary, product_info.content, additionalFields_json, tags_json)
+        )
+        conn.commit()
+        product_info.id = cursor.lastrowid
+        return product_info
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise DatabaseError(f"Failed to add product_info: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
+def get_product_info(
+    workspace_id: str,
+    product_id: Optional[int] = None,
+    category: Optional[str] = None,
+    tags_filter_include_all: Optional[List[str]] = None,
+    tags_filter_include_any: Optional[List[str]] = None,
+    limit: Optional[int] = None
+) -> List[models.ProductInfo]:
+    """Retrieves product_info entries with optional filtering."""
+    conn = get_db_connection(workspace_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        query = "SELECT id, timestamp, category, summary, content, additionalFields, tags FROM product_info WHERE workspace_id = ?"
+        params = [workspace_id]
+        
+        if product_id is not None:
+            query += " AND id = ?"
+            params.append(product_id)
+        if category is not None:
+            query += " AND category = ?"
+            params.append(category)
+        
+        query += " ORDER BY timestamp DESC"
+        
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+        
+        cursor.execute(query, params)
+        rows = cursor.fetchall()
+        
+        results = []
+        
+        for row in rows:
+            product_info = models.ProductInfo(
+                id=row['id'],
+                timestamp=row['timestamp'],
+                category=row['category'],
+                summary=row['summary'],
+                content=row['content'],
+                additionalFields=json.loads(row['additionalFields']) if row['additionalFields'] else {},
+                tags=json.loads(row['tags']) if row['tags'] else None
+            )
+            results.append(product_info)
+        
+        # Python-based filtering for tags
+        if tags_filter_include_all:
+            results = [
+                r for r in results if r.tags and all(tag in r.tags for tag in tags_filter_include_all)
+            ]
+        
+        if tags_filter_include_any:
+            results = [
+                r for r in results if r.tags and any(tag in r.tags for tag in tags_filter_include_any)
+            ]
+        
+        return results
+    except (sqlite3.Error, json.JSONDecodeError) as e:
+        raise DatabaseError(f"Failed to retrieve product_info: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
+def update_product_info(
+    workspace_id: str,
+    product_id: int,
+    updates: Dict[str, Any]
+) -> bool:
+    """Updates an existing product_info entry. Returns True if successful, False if not found."""
+    if not updates:
+        return False
+    
+    conn = get_db_connection(workspace_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        
+        # Build dynamic UPDATE statement
+        set_fields = []
+        params = []
+        
+        for key, value in updates.items():
+            set_fields.append(f"{key} = ?")
+            if key == 'additionalFields' and isinstance(value, dict) or key == 'tags' and isinstance(value, list):
+                params.append(json.dumps(value))
+            else:
+                params.append(value)
+        
+        params.extend([product_id, workspace_id])
+        
+        query = f"UPDATE product_info SET {', '.join(set_fields)} WHERE id = ? AND workspace_id = ?"
+        cursor.execute(query, params)
+        conn.commit()
+        
+        return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise DatabaseError(f"Failed to update product_info: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
+def delete_product_info(workspace_id: str, product_id: int) -> bool:
+    """Deletes a product_info by its ID. Returns True if deleted, False otherwise."""
+    conn = get_db_connection(workspace_id)
+    cursor = None # Initialize cursor for finally block
+    sql = "DELETE FROM product_info WHERE id = ? AND workspace_id = ?"
+    try:
+        cursor = conn.cursor()
+        cursor.execute(sql, (product_id, workspace_id))
+        # The FTS table 'product_info_fts' should be updated automatically by its AFTER DELETE trigger.
+        conn.commit()
+        return cursor.rowcount > 0
+    except sqlite3.Error as e:
+        conn.rollback()
+        raise DatabaseError(f"Failed to delete product_info with ID {product_id}: {e}")
     finally:
         if cursor:
             cursor.close()
