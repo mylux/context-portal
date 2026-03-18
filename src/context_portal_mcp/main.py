@@ -1084,6 +1084,38 @@ async def tool_get_product_info(
         return {"status": "error", "message": str(e)}
 
 @conport_mcp.tool(
+    name="get_product_info_tags",
+    description="Retrieves product_info tags with optional filtering.",
+    annotations=ToolAnnotations(
+        title="Get Product Info Tags",
+        readOnlyHint=True,
+    ),
+)
+async def tool_get_product_info_tags(
+    workspace_id: Annotated[str, Field(
+        description="Identifier for the workspace (e.g., absolute path)"
+    )],
+    ctx: Context,
+    category: Annotated[Optional[str], Field(
+        description="Filter by category"
+    )] = None,
+    limit: Annotated[Optional[Union[int, str]], Field(
+        description="Maximum number of results to return"
+    )] = None
+) -> List[str]:
+    """Retrieves product_info items with optional filtering."""
+    try:
+        _ = ctx
+        pydantic_args = models.GetProductInfoTagsArgs(
+            workspace_id=workspace_id,
+            category=category,
+            limit=int(limit) if limit is not None else None
+        )
+        return mcp_handlers.handle_get_product_info_tags(pydantic_args)
+    except exceptions.ContextPortalError as e:
+        return {"status": "error", "message": str(e)}
+
+@conport_mcp.tool(
     name="update_product_info",
     description="Updates an existing product_info item.",
 )

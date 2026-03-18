@@ -399,6 +399,19 @@ class DeleteProductInfoArgs(IntCoercionMixin, BaseArgs):
             raise ValueError("id must be greater than or equal to 1")
         return self
 
+class GetProductInfoTagsArgs(IntCoercionMixin, BaseArgs):
+    """
+    Arguments for retrieving all the tags registered in all product info items.
+    """
+    category: Optional[str] = Field(None, description="Category to filter")
+    limit: Optional[int] = Field(None, description="Maximum number of results to return (most recent first)")
+
+    @model_validator(mode='after')
+    def check_limit(self) -> 'GetProductInfoTagsArgs':
+        if self.limit is not None and self.limit < 1:
+            raise ValueError("limit must be greater than or equal to 1")
+        return self
+    
 
 # --- Export Tool ---
 

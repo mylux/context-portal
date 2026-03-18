@@ -1403,6 +1403,46 @@ def delete_product_info(workspace_id: str, product_id: int) -> bool:
         if cursor:
             cursor.close()
 
+def get_product_info_tags(
+    workspace_id: str,
+    category: Optional[str] = None,
+    limit: Optional[int] = None
+) -> List[str]:
+    """Retrieves product_info entries with optional filtering."""
+    conn = get_db_connection(workspace_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        query = "SELECT tags FROM product_info WHERE LENGTH(tags) > 2 AND workspace_id = ?"
+        params = [workspace_id]
+        
+        if category is not None:
+            query += " AND category = ?"
+            params.append(category)
+        
+        query += " ORDER BY timestamp DESC"
+        
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+        
+        stop = False
+        cursor.execute(query, params)
+        results = set()
+
+        while not stop and (len(results) < limit if limit else True):
+            row = cursor.fetchone()
+            stop = row is None
+            tags = json.loads(row['tags']) if row else []
+            results.update(tags[0:(limit or len(tags))])
+        
+        return list(results)
+    except (sqlite3.Error, json.JSONDecodeError) as e:
+        raise DatabaseError(f"Failed to retrieve product_info: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
 def log_context_link(workspace_id: str, link_data: models.ContextLink) -> models.ContextLink:
     """Logs a new context link."""
     conn = get_db_connection(workspace_id)
