@@ -131,6 +131,23 @@ class TestProductInfoModels:
         assert args.category == "Documentation"
         assert args.limit == 10
 
+    def test_get_product_info_categories_args_limit_validation(self):
+        """Test GetProductInfoArgs limit bounds validation."""
+        with pytest.raises(ValidationError):
+            models.GetProductInfoCategoriesArgs(
+                workspace_id=self.WS,
+                limit=0  # Must be >= 1
+            )
+
+    def test_get_product_info_categories_args_limit_coercion(self):
+        """Test GetProductInfoArgs limit string coercion."""
+        args = models.GetProductInfoCategoriesArgs(
+            workspace_id=self.WS,
+            limit="5"
+        )
+        assert args.limit == 5
+        assert isinstance(args.limit, int)
+
     def test_get_product_info_tags_args_limit_validation(self):
         """Test GetProductInfoArgs limit bounds validation."""
         with pytest.raises(ValidationError):
@@ -139,7 +156,7 @@ class TestProductInfoModels:
                 limit=0  # Must be >= 1
             )
 
-    def test_get_product_info__tags_args_limit_coercion(self):
+    def test_get_product_info_tags_args_limit_coercion(self):
         """Test GetProductInfoArgs limit string coercion."""
         args = models.GetProductInfoTagsArgs(
             workspace_id=self.WS,
@@ -461,6 +478,71 @@ class TestProductInfoHandlers:
         
         assert isinstance(results, list)
         assert len(results) == 1
+    
+    def test_handle_get_product_info_categories_all(self):
+        """Test retrieving all product_info categories."""
+        # First add 2 entries
+        args_add = models.AddProductInfoArgs(
+            workspace_id=self.workspace_id,
+            category="Test",
+            summary="Test entry",
+            content="Test content",
+            tags=["test"]
+        )
+        H.handle_add_product_info(args_add)
+
+        args_add = models.AddProductInfoArgs(
+            workspace_id=self.workspace_id,
+            category="Test2",
+            summary="Test entry2",
+            content="Test content2",
+            tags=["test2"]
+        )
+        H.handle_add_product_info(args_add)
+        
+        # Now retrieve
+        args_get = models.GetProductInfoCategoriesArgs(
+            workspace_id=self.workspace_id
+        )
+        
+        results = H.handle_get_product_info_categories(args_get)
+        
+        assert isinstance(results, list)
+        assert len(results) > 0
+        assert "Test" in results
+        assert "Test2" in results
+
+    def test_handle_get_product_info_categories_with_limit(self):
+        """Test retrieving product_info categories with limit."""
+
+        # First add 2 entries
+        args_add = models.AddProductInfoArgs(
+            workspace_id=self.workspace_id,
+            category="Test",
+            summary="Test entry",
+            content="Test content",
+            tags=["test"]
+        )
+        H.handle_add_product_info(args_add)
+
+        args_add = models.AddProductInfoArgs(
+            workspace_id=self.workspace_id,
+            category="Test2",
+            summary="Test entry2",
+            content="Test content2",
+            tags=["test2"]
+        )
+        H.handle_add_product_info(args_add)
+
+        args_get = models.GetProductInfoCategoriesArgs(
+            workspace_id=self.workspace_id,
+            limit=1
+        )
+        
+        results = H.handle_get_product_info_categories(args_get)
+        
+        assert isinstance(results, list)
+        assert len(results) == 1
 
     def test_handle_update_product_info_category(self):
         """Test updating product_info category."""
@@ -763,6 +845,34 @@ class TestProductInfoDatabase:
         )
         
         assert items == ["unique-category"]
+
+    def test_db_get_product_info_categories(self):
+        """Test database retrieval of categories."""
+        product_info = models.ProductInfo(
+            category="UniqueCategory",
+            summary="Summary",
+            content="Content",
+            tags = ["unique-category"]
+        )
+        
+        db.add_product_info(self.workspace_id, product_info)
+
+        product_info = models.ProductInfo(
+            category="UniqueCategory2",
+            summary="Summary2",
+            content="Content2",
+            tags = ["unique-category2"]
+        )
+
+        db.add_product_info(self.workspace_id, product_info)
+        
+        items = db.get_product_info_categories(
+            self.workspace_id,
+        )
+        
+        assert len(items) > 0
+        assert "UniqueCategory" in items
+        assert "UniqueCategory2" in items
 
 
 class TestProductInfoIntegration:

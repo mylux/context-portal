@@ -411,6 +411,18 @@ class GetProductInfoTagsArgs(IntCoercionMixin, BaseArgs):
         if self.limit is not None and self.limit < 1:
             raise ValueError("limit must be greater than or equal to 1")
         return self
+
+class GetProductInfoCategoriesArgs(IntCoercionMixin, BaseArgs):
+    """
+    Arguments for retrieving all the categories registered in all product info items.
+    """
+    limit: Optional[int] = Field(None, description="Maximum number of results to return (most recent first)")
+
+    @model_validator(mode='after')
+    def check_limit(self) -> 'GetProductInfoCategoriesArgs':
+        if self.limit is not None and self.limit < 1:
+            raise ValueError("limit must be greater than or equal to 1")
+        return self
     
 
 # --- Export Tool ---

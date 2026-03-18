@@ -1329,7 +1329,7 @@ def handle_get_product_info(args: models.GetProductInfoArgs) -> List[Dict[str, A
         raise ContextPortalError(f"Failed to retrieve product_info: {str(e)}")
 
 def handle_get_product_info_tags(args: models.GetProductInfoTagsArgs) -> List[str]:
-    """Handles the 'get_product_info' MCP tool."""
+    """Handles the 'get_product_info_tags' MCP tool."""
     try:
         return db.get_product_info_tags(
             workspace_id=args.workspace_id,
@@ -1338,6 +1338,16 @@ def handle_get_product_info_tags(args: models.GetProductInfoTagsArgs) -> List[st
         )
     except Exception as e:
         raise ContextPortalError(f"Failed to retrieve product_info tags: {str(e)}")
+
+def handle_get_product_info_categories(args: models.GetProductInfoCategoriesArgs) -> List[str]:
+    """Handles the 'get_product_info_categories' MCP tool."""
+    try:
+        return db.get_product_info_categories(
+            workspace_id=args.workspace_id,
+            limit=args.limit
+        )
+    except Exception as e:
+        raise ContextPortalError(f"Failed to retrieve product_info categories: {str(e)}")
 
 def handle_update_product_info(args: models.UpdateProductInfoArgs) -> Dict[str, Any]:
     """Handles the 'update_product_info' MCP tool."""

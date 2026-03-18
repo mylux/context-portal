@@ -1443,6 +1443,32 @@ def get_product_info_tags(
         if cursor:
             cursor.close()
 
+def get_product_info_categories(
+    workspace_id: str,
+    limit: Optional[int] = None
+) -> List[str]:
+    """Retrieves product_info categories."""
+    conn = get_db_connection(workspace_id)
+    cursor = None
+    try:
+        cursor = conn.cursor()
+        query = "SELECT DISTINCT category FROM product_info WHERE LENGTH(category) > 0 AND workspace_id = ?"
+        params = [workspace_id]
+        
+        query += " ORDER BY timestamp DESC"
+        
+        if limit:
+            query += " LIMIT ?"
+            params.append(limit)
+        
+        cursor.execute(query, params)
+        return [r['category'] for r in cursor.fetchall() if r['category']]
+    except (sqlite3.Error, json.JSONDecodeError) as e:
+        raise DatabaseError(f"Failed to retrieve product_info: {e}")
+    finally:
+        if cursor:
+            cursor.close()
+
 def log_context_link(workspace_id: str, link_data: models.ContextLink) -> models.ContextLink:
     """Logs a new context link."""
     conn = get_db_connection(workspace_id)
